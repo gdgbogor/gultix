@@ -10,10 +10,10 @@ RUN pip install --upgrade pip && \
     pip install --no-cache-dir midtransclient>=1.4.0
 
 # Install pretix-midtrans plugin from private repository
-# RUN pip install "git+https://${GITHUB_TOKEN}@github.com/awsugid/pretix-midtrans.git"
+ARG GITHUB_TOKEN
+RUN pip install "git+https://${GITHUB_TOKEN}@github.com/awsugid/pretix-midtrans.git"
 
 # Install the fontpack plugin from private github repository
-ARG GITHUB_TOKEN
 RUN pip install "git+https://${GITHUB_TOKEN}@github.com/gdgbogor/gultix-google-font.git"
 
 # Collect static files for all plugins
