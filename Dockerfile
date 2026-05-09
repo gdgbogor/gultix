@@ -13,6 +13,7 @@ RUN pip install --upgrade pip && \
 # RUN pip install "git+https://${GITHUB_TOKEN}@github.com/awsugid/pretix-midtrans.git"
 
 # Install the fontpack plugin from private github repository
+ARG GITHUB_TOKEN
 RUN pip install "git+https://${GITHUB_TOKEN}@github.com/gdgbogor/gultix-google-font.git"
 
 # Collect static files for all plugins

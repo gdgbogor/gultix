@@ -17,7 +17,10 @@ services:
 
   task: &pretix-common
     command: taskworker
-    build: .
+    build:
+      context: .
+      args:
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
     volumes:
       - pretix-data:/data
     env_file: .env
