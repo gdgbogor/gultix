@@ -2,23 +2,18 @@ FROM pretix/standalone:stable
 
 USER root
 
+# Install git in case it's not present for fetching from private repo
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
 # Install midtransclient for plugin
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir midtransclient>=1.4.0
 
-# Create directories for plugin installation
-RUN mkdir -p /pretix/src/templates/pretix_midtrans
+# Install pretix-midtrans plugin from private repository
+RUN pip install "git+https://${GITHUB_TOKEN}@github.com/awsugid/pretix-midtrans.git"
 
-# Copy plugin files directly into the image
-COPY pretix-midtrans /pretix/src/pretix-midtrans/
-COPY pretix-fontpack-free-master /pretix/src/pretix-fontpack-free-master/
-
-# Install the plugin during build
-RUN cd /pretix/src/pretix-midtrans && \
-    pip install -e .
-RUN cd /pretix/src/pretix-fontpack-free-master && \
-    pip install -e . && \
-    make
+# Install the fontpack plugin from private github repository
+RUN pip install "git+https://${GITHUB_TOKEN}@github.com/gdgbogor/gultix-google-font.git"
 
 # Collect static files for all plugins
 RUN pretix collectstatic --no-input
