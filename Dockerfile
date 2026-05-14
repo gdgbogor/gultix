@@ -1,4 +1,5 @@
-FROM pretix/standalone:stable
+## Stage 1: Build pretix with plugins
+FROM pretix/standalone:stable AS pretix-build
 
 USER root
 
@@ -32,5 +33,12 @@ ENV PYTHONPATH=/pretix/src
 
 EXPOSE 80
 
+USER pretixuser
+
 ENTRYPOINT ["pretix"]
 # CMD ["all"]
+
+## Stage 2: Nginx with static files baked in from the pretix build
+FROM nginx:latest AS nginx
+
+COPY --from=pretix-build /pretix/src/pretix/static.dist/ /pretix/src/pretix/static.dist/
