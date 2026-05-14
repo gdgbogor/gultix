@@ -1,8 +1,9 @@
-# name: Docker Publish
+name: Docker Publish
 
 on:
   push:
     branches: [ "main", "master" ]
+    tags: [ "v*.*.*" ]
   workflow_dispatch:
 
 env:
@@ -29,18 +30,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
+      # --- Pretix app image (web + task) ---
+      - name: Extract metadata for pretix image
+        id: meta-pretix
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Build and push Docker image
+      - name: Build and push pretix image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          target: pretix-build
+          tags: ${{ steps.meta-pretix.outputs.tags }}
+          labels: ${{ steps.meta-pretix.outputs.labels }}
+          build-args: |
+            GITHUB_TOKEN=${{ secrets.PLUGIN_REPO_TOKEN }}
+
+      # --- Nginx image (static files baked in) ---
+      - name: Extract metadata for nginx image
+        id: meta-nginx
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx
+
+      - name: Build and push nginx image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          target: nginx
+          tags: ${{ steps.meta-nginx.outputs.tags }}
+          labels: ${{ steps.meta-nginx.outputs.labels }}
           build-args: |
             GITHUB_TOKEN=${{ secrets.PLUGIN_REPO_TOKEN }}
