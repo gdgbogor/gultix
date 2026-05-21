@@ -1,0 +1,10 @@
+name = "gultix-openapi"
+main = "src/index.js"
+compatibility_date = "2023-10-30"
+
+[observability]
+enabled = true
+
+[vars]
+# You should override this in Cloudflare dashboard or via secrets
+API_KEY = "your-secure-api-key-here"
