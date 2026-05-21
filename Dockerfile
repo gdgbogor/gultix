@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 # Install midtransclient for plugin
 # Install drf-spectacular for OpenAPI schema generation (used by CI, not runtime)
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir midtransclient>=1.4.0 drf-spectacular
+    pip install --no-cache-dir midtransclient>=1.4.0
 
 # Install pretix-midtrans plugin from private repository
 ARG GITHUB_TOKEN

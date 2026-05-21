@@ -152,29 +152,9 @@ jobs:
             -e PRETIX_PRETIX_CURRENCY=IDR \
             -v $(pwd)/generate_schema.py:/generate_schema.py:ro \
             -v $(pwd)/output:/output \
-            --entrypoint python \
+            --entrypoint sh \
             gultix-schema:local \
-            /generate_schema.py --output /output/pretix-openapi.yaml --format yaml
-
-      - name: Also generate JSON format
-        run: |
-          docker run --rm \
-            --network host \
-            -e PRETIX_DATABASE_BACKEND=postgresql \
-            -e PRETIX_DATABASE_HOST=localhost \
-            -e PRETIX_DATABASE_NAME=pretix \
-            -e PRETIX_DATABASE_USER=pretix \
-            -e PRETIX_DATABASE_PASSWORD=pretix \
-            -e PRETIX_REDIS_LOCATION=redis://localhost:6379/1 \
-            -e PRETIX_CELERY_BACKEND=redis://localhost:6379/2 \
-            -e PRETIX_CELERY_BROKER=redis://localhost:6379/3 \
-            -e PRETIX_PRETIX_URL=http://localhost \
-            -e PRETIX_PRETIX_CURRENCY=IDR \
-            -v $(pwd)/generate_schema.py:/generate_schema.py:ro \
-            -v $(pwd)/output:/output \
-            --entrypoint python \
-            gultix-schema:local \
-            /generate_schema.py --output /output/pretix-openapi.json --format json
+            -c 'pip install drf-spectacular && python /generate_schema.py --output /output/pretix-openapi.yaml --format yaml && python /generate_schema.py --output /output/pretix-openapi.json --format json'
 
       - name: Verify schema files exist
         run: |
