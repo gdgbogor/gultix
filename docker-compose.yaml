@@ -17,8 +17,6 @@ services:
 
   task: &pretix-common
     command: taskworker
-    deploy:
-      replicas: 2
     build:
       dockerfile: Dockerfile
       target: pretix-build
@@ -45,8 +43,6 @@ services:
     <<: *pretix-common
     entrypoint: []
     command: gunicorn pretix.wsgi --name pretix --workers 2 --max-requests 1200 --max-requests-jitter 50 --log-level info --bind 0.0.0.0:80
-    deploy:
-      replicas: 2
 
   nginx:
     build:

@@ -1,0 +1,159 @@
+name: Generate OpenAPI Schema
+
+on:
+  push:
+    branches: ["main", "master"]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  generate-openapi-schema:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed for creating releases
+      packages: read
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pretix
+          POSTGRES_PASSWORD: pretix
+          POSTGRES_DB: pretix
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U pretix"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Gultix image
+        run: |
+          docker build \
+            --build-arg GITHUB_TOKEN=${{ secrets.PLUGIN_REPO_TOKEN }} \
+            --target pretix-build \
+            -t gultix-schema:local \
+            .
+
+      - name: Run database migrations
+        run: |
+          docker run --rm \
+            --network host \
+            -e PRETIX_DATABASE_BACKEND=postgresql \
+            -e PRETIX_DATABASE_HOST=localhost \
+            -e PRETIX_DATABASE_NAME=pretix \
+            -e PRETIX_DATABASE_USER=pretix \
+            -e PRETIX_DATABASE_PASSWORD=pretix \
+            -e PRETIX_REDIS_LOCATION=redis://localhost:6379/1 \
+            -e PRETIX_CELERY_BACKEND=redis://localhost:6379/2 \
+            -e PRETIX_CELERY_BROKER=redis://localhost:6379/3 \
+            -e PRETIX_PRETIX_URL=http://localhost \
+            -e PRETIX_PRETIX_CURRENCY=IDR \
+            gultix-schema:local \
+            migrate
+
+      - name: Generate OpenAPI schema
+        run: |
+          mkdir -p output
+          docker run --rm \
+            --network host \
+            -e PRETIX_DATABASE_BACKEND=postgresql \
+            -e PRETIX_DATABASE_HOST=localhost \
+            -e PRETIX_DATABASE_NAME=pretix \
+            -e PRETIX_DATABASE_USER=pretix \
+            -e PRETIX_DATABASE_PASSWORD=pretix \
+            -e PRETIX_REDIS_LOCATION=redis://localhost:6379/1 \
+            -e PRETIX_CELERY_BACKEND=redis://localhost:6379/2 \
+            -e PRETIX_CELERY_BROKER=redis://localhost:6379/3 \
+            -e PRETIX_PRETIX_URL=http://localhost \
+            -e PRETIX_PRETIX_CURRENCY=IDR \
+            -v $(pwd)/generate_schema.py:/generate_schema.py:ro \
+            -v $(pwd)/output:/output \
+            --entrypoint python \
+            gultix-schema:local \
+            /generate_schema.py --output /output/pretix-openapi.yaml --format yaml
+
+      - name: Also generate JSON format
+        run: |
+          docker run --rm \
+            --network host \
+            -e PRETIX_DATABASE_BACKEND=postgresql \
+            -e PRETIX_DATABASE_HOST=localhost \
+            -e PRETIX_DATABASE_NAME=pretix \
+            -e PRETIX_DATABASE_USER=pretix \
+            -e PRETIX_DATABASE_PASSWORD=pretix \
+            -e PRETIX_REDIS_LOCATION=redis://localhost:6379/1 \
+            -e PRETIX_CELERY_BACKEND=redis://localhost:6379/2 \
+            -e PRETIX_CELERY_BROKER=redis://localhost:6379/3 \
+            -e PRETIX_PRETIX_URL=http://localhost \
+            -e PRETIX_PRETIX_CURRENCY=IDR \
+            -v $(pwd)/generate_schema.py:/generate_schema.py:ro \
+            -v $(pwd)/output:/output \
+            --entrypoint python \
+            gultix-schema:local \
+            /generate_schema.py --output /output/pretix-openapi.json --format json
+
+      - name: Verify schema files exist
+        run: |
+          echo "=== Generated schema files ==="
+          ls -la output/
+          echo ""
+          echo "=== Schema YAML preview (first 50 lines) ==="
+          head -50 output/pretix-openapi.yaml || echo "YAML generation failed"
+          echo ""
+          echo "=== Schema JSON size ==="
+          wc -c output/pretix-openapi.json || echo "JSON generation failed"
+
+      - name: Upload schema as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pretix-openapi-schema
+          path: |
+            output/pretix-openapi.yaml
+            output/pretix-openapi.json
+
+      - name: Create or update GitHub Release with schema
+        if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || 'Latest OpenAPI Schema' }}
+          body: |
+            Auto-generated OpenAPI schema for Pretix (Gultix).
+
+            Generated from commit: ${{ github.sha }}
+            Timestamp: ${{ github.event.head_commit.timestamp || 'manual' }}
+
+            ## Downloads
+            - `pretix-openapi.yaml` — OpenAPI 3.0 schema (YAML format)
+            - `pretix-openapi.json` — OpenAPI 3.0 schema (JSON format)
+
+            ## Usage
+            Point your API gateway or Swagger UI at:
+            ```
+            https://github.com/${{ github.repository }}/releases/latest/download/pretix-openapi.yaml
+            ```
+          files: |
+            output/pretix-openapi.yaml
+            output/pretix-openapi.json
+          prerelease: ${{ github.ref_type != 'tag' }}
+          make_latest: ${{ github.ref_type == 'tag' }}

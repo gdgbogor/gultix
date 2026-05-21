@@ -7,8 +7,9 @@ USER root
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Install midtransclient for plugin
+# Install drf-spectacular for OpenAPI schema generation (used by CI, not runtime)
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir midtransclient>=1.4.0
+    pip install --no-cache-dir midtransclient>=1.4.0 drf-spectacular
 
 # Install pretix-midtrans plugin from private repository
 ARG GITHUB_TOKEN
@@ -16,6 +17,9 @@ RUN pip install "git+https://${GITHUB_TOKEN}@github.com/awsugid/pretix-midtrans.
 
 # Install the fontpack plugin from private github repository
 RUN pip install "git+https://${GITHUB_TOKEN}@github.com/gdgbogor/gultix-google-font.git"
+
+# Intall the Pretix to Bevy Integration
+RUN pip install "git+https://github.com/gdgbogor/bevy.git"
 
 # Collect static files for all plugins
 RUN pretix collectstatic --no-input
