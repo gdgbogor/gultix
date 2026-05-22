@@ -10,18 +10,18 @@ export default {
     }
 
     // Check for Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const expectedToken = `Bearer ${env.API_KEY}`;
+    // const authHeader = request.headers.get('Authorization');
+    // const expectedToken = `Bearer ${env.API_KEY}`;
 
-    if (!authHeader || authHeader !== expectedToken) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: {
-          'Content-Type': 'application/json',
-          'WWW-Authenticate': 'Bearer'
-        }
-      });
-    }
+    // if (!authHeader || authHeader !== expectedToken) {
+    //   return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    //     status: 401,
+    //     headers: {
+    //       'Content-Type': 'application/json',
+    //       'WWW-Authenticate': 'Bearer'
+    //     }
+    //   });
+    // }
 
     // Serve the OpenAPI schema
     return new Response(JSON.stringify(openapiSchema), {
