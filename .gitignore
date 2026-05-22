@@ -1,2 +1,4 @@
 .env
 openapi-worker/src/openapi.json
+venv/
+output/
