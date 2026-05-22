@@ -61,13 +61,7 @@ def generate_schema(output_format="yaml"):
     # discovered properly if we use the root urlconf or specific api urlconf.
     # drf-spectacular uses `django.conf.settings.ROOT_URLCONF` by default, but Pretix
     # has a complex multidomain setup that might mask the API routes from the default generator.
-    generator = SchemaGenerator(urlconf='pretix.urls', api_version='v1')
-    schema = generator.get_schema(public=True)
-
-    # Try alternative urlconf if paths are empty
-    if not schema or not schema.get('paths'):
-        print('Retrying with specific urlconf...', file=sys.stderr)
-        generator = SchemaGenerator(urlconf='pretix.api.urls', api_version='v1')
+    generator = SchemaGenerator(urlconf='pretix.api.urls', api_version='v1')
     schema = generator.get_schema(public=True)
 
     if output_format == "json":
