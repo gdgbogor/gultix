@@ -57,7 +57,11 @@ def generate_schema(output_format="yaml"):
     """Generate the OpenAPI schema."""
     from drf_spectacular.generators import SchemaGenerator
 
-    generator = SchemaGenerator()
+    # In Pretix, the API is mounted under /api/v1/ and the viewsets might only be
+    # discovered properly if we use the root urlconf or specific api urlconf.
+    # drf-spectacular uses `django.conf.settings.ROOT_URLCONF` by default, but Pretix
+    # has a complex multidomain setup that might mask the API routes from the default generator.
+    generator = SchemaGenerator(urlconf='pretix.api.urls', api_version='v1')
     schema = generator.get_schema(public=True)
 
     if output_format == "json":
