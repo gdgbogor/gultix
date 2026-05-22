@@ -190,33 +190,6 @@ jobs:
             output/pretix-openapi.yaml
             output/pretix-openapi.json
 
-      - name: Create or update GitHub Release with schema
-        if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
-          name: ${{ github.ref_type == 'tag' && github.ref_name || 'Latest OpenAPI Schema' }}
-          body: |
-            Auto-generated OpenAPI schema for Pretix (Gultix).
-
-            Generated from commit: ${{ github.sha }}
-            Timestamp: ${{ github.event.head_commit.timestamp || 'manual' }}
-
-            ## Downloads
-            - `pretix-openapi.yaml` — OpenAPI 3.0 schema (YAML format)
-            - `pretix-openapi.json` — OpenAPI 3.0 schema (JSON format)
-
-            ## Usage
-            Point your API gateway or Swagger UI at:
-            ```
-            https://github.com/${{ github.repository }}/releases/latest/download/pretix-openapi.yaml
-            ```
-          files: |
-            output/pretix-openapi.yaml
-            output/pretix-openapi.json
-          prerelease: ${{ github.ref_type != 'tag' }}
-          make_latest: ${{ github.ref_type == 'tag' }}
-
       - name: Copy generated openapi.json to worker directory
         run: |
           mkdir -p openapi-worker/src
