@@ -52,11 +52,42 @@ def setup_django():
 
     django.setup()
 
+    # Monkeypatch NamespaceVersioning.determine_version to bypass resolver_match namespace issues
+    # and ensure version v1 is matched during offline schema generation.
+    from rest_framework.versioning import NamespaceVersioning
+    NamespaceVersioning.determine_version = lambda self, request, *args, **kwargs: 'v1'
+
+    # Monkeypatch drf-spectacular AutoSchema._map_serializer_field to gracefully handle
+    # fields whose querysets are callables or functional proxies lacking a .model attribute.
+    from drf_spectacular.openapi import AutoSchema
+    original_map_serializer_field = AutoSchema._map_serializer_field
+
+    def patched_map_serializer_field(self, field, direction, bypass_extensions=False):
+        if hasattr(field, 'queryset') and field.queryset is not None and not hasattr(field.queryset, 'model'):
+            if callable(field.queryset):
+                try:
+                    evaluated = field.queryset()
+                    if hasattr(evaluated, 'model'):
+                        field.queryset = evaluated
+                except Exception:
+                    pass
+            if not hasattr(field, 'queryset') or field.queryset is None or not hasattr(field.queryset, 'model'):
+                class MockQuerySet:
+                    model = getattr(field.parent.Meta, 'model', None) if hasattr(field.parent, 'Meta') else None
+                if MockQuerySet.model is None:
+                    from django.contrib.auth import get_user_model
+                    MockQuerySet.model = get_user_model()
+                field.queryset = MockQuerySet
+        return original_map_serializer_field(self, field, direction, bypass_extensions)
+
+    AutoSchema._map_serializer_field = patched_map_serializer_field
+
 
 def generate_schema(output_format="yaml"):
     """Generate the OpenAPI schema."""
     from drf_spectacular.generators import SchemaGenerator
     from django.urls import path, include
+    from django_scopes import scopes_disabled
 
     # Create a dynamic mock urlconf to ensure drf-spectacular finds the routes
     # mounted under the correct prefix.
@@ -67,12 +98,14 @@ def generate_schema(output_format="yaml"):
         ]
 
     generator = SchemaGenerator(urlconf=MockUrlConf, api_version='v1')
-    schema = generator.get_schema(public=True)
+    with scopes_disabled():
+        schema = generator.get_schema(public=True)
 
     if not schema or not schema.get('paths'):
         print('Fallback to maindomain_urlconf...', file=sys.stderr)
         generator = SchemaGenerator(urlconf='pretix.multidomain.maindomain_urlconf', api_version='v1')
-        schema = generator.get_schema(public=True)
+        with scopes_disabled():
+            schema = generator.get_schema(public=True)
 
     if output_format == "json":
         return json.dumps(schema, indent=2, default=str)
